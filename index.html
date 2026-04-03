@@ -1,1 +1,902 @@
-<html>hello</html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JMeter Report Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ─── Reset & Tokens ────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #07080c;
+  --bg2:       #0d0f16;
+  --panel:     #111520;
+  --panel2:    #161b27;
+  --border:    #1e2535;
+  --border2:   #252d40;
+  --accent:    #4f8ef7;
+  --accent-glow: rgba(79,142,247,0.18);
+  --teal:      #2dd4bf;
+  --green:     #34d399;
+  --amber:     #fbbf24;
+  --red:       #f87171;
+  --text:      #cdd5e0;
+  --text2:     #8896ab;
+  --text3:     #4a5568;
+  --mono:      'IBM Plex Mono', monospace;
+  --sans:      'Outfit', sans-serif;
+  --radius:    10px;
+  --radius-lg: 16px;
+}
+
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  min-height: 100vh;
+  line-height: 1.6;
+}
+
+/* ─── Animated background ───────────────────────────────────────── */
+.bg-art {
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  overflow: hidden;
+}
+.bg-art::before {
+  content: '';
+  position: absolute;
+  width: 700px; height: 700px;
+  left: -200px; top: -200px;
+  background: radial-gradient(circle, rgba(79,142,247,0.06) 0%, transparent 65%);
+  animation: drift 20s ease-in-out infinite alternate;
+}
+.bg-art::after {
+  content: '';
+  position: absolute;
+  width: 500px; height: 500px;
+  right: -150px; bottom: 100px;
+  background: radial-gradient(circle, rgba(45,212,191,0.05) 0%, transparent 65%);
+  animation: drift 26s ease-in-out infinite alternate-reverse;
+}
+@keyframes drift {
+  from { transform: translate(0, 0) scale(1); }
+  to   { transform: translate(40px, 60px) scale(1.1); }
+}
+
+/* grid overlay */
+.bg-grid {
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+/* ─── Layout ────────────────────────────────────────────────────── */
+.wrap {
+  position: relative; z-index: 1;
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 52px 24px 100px;
+}
+
+/* ─── Header ────────────────────────────────────────────────────── */
+.header { margin-bottom: 44px; }
+.header-chip {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: rgba(79,142,247,0.1);
+  border: 1px solid rgba(79,142,247,0.22);
+  border-radius: 999px;
+  padding: 5px 15px;
+  font-family: var(--mono);
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 18px;
+}
+.header-chip .pulse {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--accent);
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%,100% { opacity: 1; box-shadow: 0 0 0 0 rgba(79,142,247,0.5); }
+  50%      { opacity: .7; box-shadow: 0 0 0 5px rgba(79,142,247,0); }
+}
+.header h1 {
+  font-size: clamp(30px,5vw,46px);
+  font-weight: 800;
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+  color: #e8edf5;
+  margin-bottom: 10px;
+}
+.header h1 span {
+  background: linear-gradient(120deg, var(--accent), var(--teal));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.header-sub {
+  font-family: var(--mono);
+  font-size: 13px; color: var(--text2);
+}
+
+/* ─── Card ──────────────────────────────────────────────────────── */
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  margin-bottom: 16px;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+.card:focus-within { border-color: var(--border2); }
+
+.card-head {
+  padding: 18px 24px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px;
+}
+.card-head-icon {
+  width: 30px; height: 30px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.card-head-icon.blue  { background: rgba(79,142,247,0.12); color: var(--accent); }
+.card-head-icon.teal  { background: rgba(45,212,191,0.1);  color: var(--teal); }
+.card-head-icon.green { background: rgba(52,211,153,0.1);  color: var(--green); }
+
+.card-head-text { flex: 1; }
+.card-title {
+  font-size: 14px; font-weight: 700; color: #dde4f0;
+  letter-spacing: 0.01em;
+}
+.card-desc { font-size: 12px; color: var(--text2); margin-top: 1px; font-family: var(--mono); }
+
+.card-body { padding: 20px 24px; }
+
+/* ─── File entries ──────────────────────────────────────────────── */
+#entries-list { display: flex; flex-direction: column; gap: 10px; }
+
+.entry {
+  display: grid;
+  grid-template-columns: auto 1fr 1fr auto;
+  gap: 10px;
+  align-items: center;
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  transition: border-color .25s, background .25s;
+  animation: entryIn .22s ease;
+}
+@keyframes entryIn {
+  from { opacity:0; transform: translateY(-6px) scale(.98); }
+  to   { opacity:1; transform: none; }
+}
+.entry:hover { border-color: var(--border2); }
+.entry.loaded { border-color: rgba(52,211,153,0.25); background: rgba(52,211,153,0.03); }
+
+.entry-idx {
+  font-family: var(--mono); font-size: 11px; font-weight: 600;
+  color: var(--text3); width: 22px; text-align: center; user-select: none;
+}
+.entry.loaded .entry-idx { color: var(--green); }
+
+/* file picker */
+.file-zone {
+  position: relative; overflow: hidden;
+  display: flex; align-items: center; gap: 8px;
+  background: var(--panel);
+  border: 1px dashed var(--border2);
+  border-radius: 8px;
+  padding: 9px 12px;
+  cursor: pointer;
+  font-family: var(--mono); font-size: 11.5px;
+  color: var(--text2);
+  transition: all .2s;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  min-width: 0;
+}
+.file-zone:hover { border-color: var(--accent); color: var(--text); background: var(--accent-glow); }
+.file-zone.picked {
+  border-style: solid; border-color: rgba(52,211,153,0.35);
+  color: var(--green); background: rgba(52,211,153,0.05);
+}
+.file-zone input[type=file] {
+  position: absolute; inset: 0; opacity: 0; cursor: pointer;
+}
+.file-zone svg { flex-shrink: 0; }
+.file-zone .fname {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  max-width: 180px;
+}
+
+/* label input */
+.lbl-input {
+  background: var(--panel);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  padding: 9px 12px;
+  font-family: var(--mono); font-size: 12px;
+  color: var(--text);
+  outline: none; width: 100%;
+  transition: border-color .2s, box-shadow .2s;
+}
+.lbl-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(79,142,247,0.12);
+}
+.lbl-input::placeholder { color: var(--text3); }
+
+/* remove */
+.rm-btn {
+  width: 32px; height: 32px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  background: transparent; border: 1px solid transparent;
+  color: var(--text3); cursor: pointer; flex-shrink: 0;
+  transition: all .2s;
+}
+.rm-btn:hover { background: rgba(248,113,113,0.1); border-color: rgba(248,113,113,0.3); color: var(--red); }
+
+/* col headers */
+.entry-cols {
+  display: grid;
+  grid-template-columns: auto 1fr 1fr auto;
+  gap: 10px; padding: 0 12px;
+  margin-bottom: 8px;
+}
+.entry-col-lbl {
+  font-family: var(--mono); font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .08em; color: var(--text3);
+}
+
+/* add btn */
+.add-btn {
+  width: 100%; margin-top: 12px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 10px; border-radius: var(--radius);
+  background: transparent;
+  border: 1px dashed rgba(79,142,247,0.2);
+  color: rgba(79,142,247,0.7); font-family: var(--sans);
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  transition: all .2s;
+}
+.add-btn:hover {
+  border-color: var(--accent); color: var(--accent);
+  background: var(--accent-glow); transform: translateY(-1px);
+}
+
+/* ─── Output card ───────────────────────────────────────────────── */
+.output-grid {
+  display: grid;
+  grid-template-columns: 1fr 140px;
+  gap: 16px;
+}
+@media (max-width: 520px) { .output-grid { grid-template-columns: 1fr; } }
+
+.field-label {
+  font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .08em; color: var(--text3);
+  font-family: var(--mono);
+  margin-bottom: 7px;
+}
+
+.filename-wrap {
+  display: flex; align-items: center;
+  background: var(--panel2);
+  border: 1px solid var(--border2);
+  border-radius: 8px; overflow: hidden;
+  transition: border-color .2s, box-shadow .2s;
+}
+.filename-wrap:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(79,142,247,0.12);
+}
+.filename-inp {
+  flex: 1; background: transparent; border: none;
+  padding: 10px 14px; font-family: var(--mono); font-size: 13px;
+  color: var(--text); outline: none;
+}
+.filename-inp::placeholder { color: var(--text3); }
+.filename-sfx {
+  padding: 0 14px; font-family: var(--mono); font-size: 12px;
+  color: var(--teal); user-select: none; background: rgba(45,212,191,0.06);
+  border-left: 1px solid var(--border2); height: 100%;
+  display: flex; align-items: center;
+}
+
+.apdex-inp {
+  width: 100%; background: var(--panel2);
+  border: 1px solid var(--border2); border-radius: 8px;
+  padding: 10px 14px; font-family: var(--mono); font-size: 13px;
+  color: var(--text); outline: none;
+  transition: border-color .2s, box-shadow .2s;
+}
+.apdex-inp:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(79,142,247,0.12);
+}
+.apdex-hint { font-family: var(--mono); font-size: 11px; color: var(--text3); margin-top: 5px; }
+
+/* ─── API config ────────────────────────────────────────────────── */
+.api-row {
+  display: flex; align-items: center; gap: 10px;
+}
+.api-inp {
+  flex: 1; background: var(--panel2);
+  border: 1px solid var(--border2); border-radius: 8px;
+  padding: 10px 14px; font-family: var(--mono); font-size: 12px;
+  color: var(--text); outline: none;
+  transition: border-color .2s;
+}
+.api-inp:focus { border-color: var(--accent); }
+.api-status {
+  font-family: var(--mono); font-size: 11px;
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 10px; border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text3); white-space: nowrap;
+}
+.api-status .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text3); }
+.api-status.ok   { color: var(--green); border-color: rgba(52,211,153,0.3); }
+.api-status.ok .dot { background: var(--green); animation: pulse 2s infinite; }
+.api-status.err  { color: var(--red); border-color: rgba(248,113,113,0.3); }
+.api-status.err .dot { background: var(--red); }
+
+/* ─── Generate button ───────────────────────────────────────────── */
+.gen-btn {
+  width: 100%; margin-top: 6px;
+  padding: 16px 32px;
+  background: linear-gradient(135deg, #3b7ef5, #5b99f7);
+  border: none; border-radius: var(--radius-lg);
+  font-family: var(--sans); font-size: 16px; font-weight: 700;
+  color: #fff; cursor: pointer; letter-spacing: .02em;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  transition: all .22s;
+  box-shadow: 0 4px 20px rgba(79,142,247,0.25);
+  position: relative; overflow: hidden;
+}
+.gen-btn::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(135deg, transparent, rgba(255,255,255,0.08));
+  opacity: 0; transition: opacity .2s;
+}
+.gen-btn:hover:not(:disabled)::after { opacity: 1; }
+.gen-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(79,142,247,0.38);
+}
+.gen-btn:active:not(:disabled) { transform: translateY(0); }
+.gen-btn:disabled {
+  background: var(--panel2); color: var(--text3);
+  box-shadow: none; cursor: not-allowed;
+}
+
+/* ─── Progress / result panel ───────────────────────────────────── */
+.result-panel {
+  margin-top: 14px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--panel);
+  overflow: hidden;
+  display: none;
+}
+.result-panel.show { display: block; animation: fadeSlide .3s ease; }
+@keyframes fadeSlide {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.rp-head {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px;
+}
+.rp-body { padding: 16px 20px; }
+
+/* states */
+.rp-loading .rp-head { border-bottom-color: rgba(79,142,247,0.2); }
+.rp-success .rp-head { background: rgba(52,211,153,0.05); border-bottom-color: rgba(52,211,153,0.18); }
+.rp-error   .rp-head { background: rgba(248,113,113,0.05); border-bottom-color: rgba(248,113,113,0.18); }
+
+.rp-title { font-size: 14px; font-weight: 700; flex: 1; }
+.rp-loading .rp-title { color: var(--accent); }
+.rp-success .rp-title { color: var(--green); }
+.rp-error   .rp-title { color: var(--red); }
+
+/* spinner */
+.spin {
+  width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0;
+  border: 2px solid rgba(79,142,247,0.2);
+  border-top-color: var(--accent);
+  animation: rot .7s linear infinite;
+}
+@keyframes rot { to { transform: rotate(360deg); } }
+
+/* steps */
+.steps { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.step {
+  font-family: var(--mono); font-size: 11px;
+  padding: 3px 10px; border-radius: 999px;
+  background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+  color: var(--text3); transition: all .3s;
+}
+.step.active {
+  background: rgba(79,142,247,0.1); border-color: rgba(79,142,247,0.35);
+  color: var(--accent);
+}
+.step.done {
+  background: rgba(52,211,153,0.08); border-color: rgba(52,211,153,0.25);
+  color: var(--green);
+}
+
+/* error detail */
+.err-detail {
+  font-family: var(--mono); font-size: 12px; color: var(--text2);
+  background: rgba(248,113,113,0.06); border: 1px solid rgba(248,113,113,0.15);
+  border-radius: 8px; padding: 12px 16px;
+  white-space: pre-wrap; word-break: break-word;
+  line-height: 1.7;
+}
+
+/* success stats */
+.success-meta {
+  display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px;
+}
+.meta-chip {
+  font-family: var(--mono); font-size: 11px;
+  padding: 4px 12px; border-radius: 999px;
+  background: rgba(52,211,153,0.08); border: 1px solid rgba(52,211,153,0.2);
+  color: var(--green);
+}
+
+/* download btn */
+.dl-btn {
+  display: inline-flex; align-items: center; gap: 9px;
+  padding: 12px 28px; border-radius: var(--radius);
+  background: linear-gradient(135deg, rgba(52,211,153,0.15), rgba(45,212,191,0.12));
+  border: 1px solid rgba(52,211,153,0.3);
+  font-family: var(--sans); font-size: 14px; font-weight: 700;
+  color: var(--green); cursor: pointer; text-decoration: none;
+  transition: all .2s;
+}
+.dl-btn:hover {
+  background: linear-gradient(135deg, rgba(52,211,153,0.22), rgba(45,212,191,0.18));
+  transform: translateY(-1px);
+  box-shadow: 0 4px 18px rgba(52,211,153,0.2);
+}
+
+/* ─── Footer ────────────────────────────────────────────────────── */
+.footer {
+  margin-top: 52px; text-align: center;
+  font-family: var(--mono); font-size: 11px; color: var(--text3);
+}
+
+/* ─── Scrollbar ─────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="bg-art"></div>
+<div class="bg-grid"></div>
+
+<div class="wrap">
+
+  <!-- ── Header ──────────────────────────────────────────────────── -->
+  <div class="header">
+    <div class="header-chip"><div class="pulse"></div> v3.0 · Professional Edition</div>
+    <h1>JMeter <span>Report</span><br>Generator</h1>
+    <p class="header-sub">Upload JTL files → click Generate → download HTML report</p>
+  </div>
+
+  <!-- ── API URL ──────────────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-head">
+      <div class="card-head-icon teal">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+      </div>
+      <div class="card-head-text">
+        <div class="card-title">API Server URL</div>
+        <div class="card-desc">Point to your running Flask backend</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="api-row">
+        <input class="api-inp" id="api-url" type="text" value="http://localhost:5000"
+               placeholder="http://localhost:5000" oninput="resetApiStatus()">
+        <button class="api-status" id="api-status-btn" onclick="checkHealth()">
+          <div class="dot"></div><span id="api-status-txt">Check</span>
+        </button>
+      </div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-top:7px">
+        Run <code style="color:var(--teal)">python app.py</code> to start the backend on port 5000
+      </div>
+    </div>
+  </div>
+
+  <!-- ── JTL Files ────────────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-head">
+      <div class="card-head-icon blue">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+      </div>
+      <div class="card-head-text">
+        <div class="card-title">JTL Files &amp; Run Labels</div>
+        <div class="card-desc">One file per test run · multiple = comparison report</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="entry-cols">
+        <div class="entry-col-lbl" style="width:22px"></div>
+        <div class="entry-col-lbl">JTL File</div>
+        <div class="entry-col-lbl">Run Label</div>
+        <div class="entry-col-lbl" style="width:32px"></div>
+      </div>
+
+      <div id="entries-list"></div>
+
+      <button class="add-btn" onclick="addEntry()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add Another JTL File
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Output settings ──────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-head">
+      <div class="card-head-icon green">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      </div>
+      <div class="card-head-text">
+        <div class="card-title">Output Settings</div>
+        <div class="card-desc">Report filename and APDEX threshold</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="output-grid">
+        <div>
+          <div class="field-label">Output Filename</div>
+          <div class="filename-wrap" id="fname-wrap">
+            <input class="filename-inp" id="output-name" type="text"
+                   value="performance_report" placeholder="performance_report"
+                   onfocus="this.parentElement.style.borderColor='var(--accent)'"
+                   onblur="this.parentElement.style.borderColor=''">
+            <span class="filename-sfx">.html</span>
+          </div>
+        </div>
+        <div>
+          <div class="field-label">APDEX Threshold</div>
+          <input class="apdex-inp" id="apdex-t" type="number" value="500" min="50" max="30000" step="50">
+          <div class="apdex-hint">ms · default 500</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Generate ─────────────────────────────────────────────────── -->
+  <button class="gen-btn" id="gen-btn" onclick="generate()">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+    Generate Report
+  </button>
+
+  <!-- ── Result panel ──────────────────────────────────────────────── -->
+  <div class="result-panel" id="result-panel">
+    <div class="rp-head" id="rp-head">
+      <div id="rp-icon"></div>
+      <div class="rp-title" id="rp-title"></div>
+    </div>
+    <div class="rp-body" id="rp-body"></div>
+  </div>
+
+  <div class="footer">
+    JMeter Professional HTML Report Generator v3.0 &nbsp;·&nbsp;
+    TC rows excluded from metrics &nbsp;·&nbsp;
+    Multi-run comparison supported
+  </div>
+</div><!-- /wrap -->
+
+<script>
+// ════════════════════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════════════════════
+let entries = [];
+let eCounter = 0;
+
+// ════════════════════════════════════════════════════════════════
+// ENTRY MANAGEMENT
+// ════════════════════════════════════════════════════════════════
+function addEntry() {
+  const id    = ++eCounter;
+  const label = 'Run-' + id;
+  entries.push({ id, file: null, label });
+
+  const el = document.createElement('div');
+  el.className = 'entry';
+  el.id = 'entry-' + id;
+  el.innerHTML = `
+    <div class="entry-idx">${id}</div>
+
+    <label class="file-zone" id="fzone-${id}">
+      <input type="file" accept=".jtl,.csv" onchange="onFile(${id},this)">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+        <polyline points="13 2 13 9 20 9"/>
+      </svg>
+      <span class="fname" id="fname-${id}">Browse .jtl / .csv&hellip;</span>
+    </label>
+
+    <input class="lbl-input" id="lbl-${id}" type="text" value="${label}"
+           placeholder="Run label"
+           oninput="onLabel(${id}, this.value)">
+
+    <button class="rm-btn" id="rm-${id}" onclick="removeEntry(${id})" title="Remove">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
+    </button>
+  `;
+  document.getElementById('entries-list').appendChild(el);
+  refreshRemoveButtons();
+}
+
+function removeEntry(id) {
+  if (entries.length <= 1) return;
+  entries = entries.filter(e => e.id !== id);
+  document.getElementById('entry-' + id)?.remove();
+  refreshRemoveButtons();
+}
+
+function refreshRemoveButtons() {
+  entries.forEach(e => {
+    const btn = document.getElementById('rm-' + e.id);
+    if (!btn) return;
+    const disabled = entries.length === 1;
+    btn.style.opacity       = disabled ? '0.25' : '1';
+    btn.style.pointerEvents = disabled ? 'none'  : 'auto';
+  });
+}
+
+function onFile(id, input) {
+  const file = input.files[0];
+  if (!file) return;
+  const entry = entries.find(e => e.id === id);
+  if (entry) entry.file = file;
+
+  const zone  = document.getElementById('fzone-' + id);
+  const fname = document.getElementById('fname-' + id);
+  zone.classList.add('picked');
+  fname.textContent = file.name;
+
+  const row = document.getElementById('entry-' + id);
+  row.classList.add('loaded');
+}
+
+function onLabel(id, val) {
+  const entry = entries.find(e => e.id === id);
+  if (entry) entry.label = val;
+}
+
+// boot with one row
+addEntry();
+
+// ════════════════════════════════════════════════════════════════
+// API HEALTH CHECK
+// ════════════════════════════════════════════════════════════════
+function apiBase() {
+  return (document.getElementById('api-url').value || 'http://localhost:5000').trim().replace(/\/$/, '');
+}
+
+function resetApiStatus() {
+  const btn = document.getElementById('api-status-btn');
+  btn.className = 'api-status';
+  btn.innerHTML = '<div class="dot"></div><span>Check</span>';
+}
+
+async function checkHealth() {
+  const btn = document.getElementById('api-status-btn');
+  btn.className = 'api-status';
+  btn.innerHTML = '<div class="spin" style="width:12px;height:12px;border-width:2px"></div><span>Checking…</span>';
+
+  try {
+    const res = await fetch(apiBase() + '/health', {
+      signal: AbortSignal.timeout(8000)
+    });
+
+    // ✅ Check status FIRST (don't rely on JSON)
+    if (!res.ok) throw new Error(res.statusText);
+    const contentType = res.headers.get("content-type");
+    if (!contentType || !contentType.includes("application/json")) {
+      throw new Error("Invalid response (not JSON)");
+    }
+
+    // ✅ Now safely parse JSON
+    const data = await res.json();
+
+    // ✅ Try parsing JSON safely
+    //let data = null;
+    // try {
+    //   data = await res.json();
+    // } catch (_) {
+    //   // ignore JSON parse errors
+    // }
+
+    btn.className = 'api-status ok';
+    btn.innerHTML = '<div class="dot"></div><span>Online</span>';
+
+  } catch (e) {
+    btn.className = 'api-status err';
+    btn.innerHTML = '<div class="dot"></div><span>Offline</span>';
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+// RESULT PANEL HELPERS
+// ════════════════════════════════════════════════════════════════
+function showPanel(state) {
+  const panel = document.getElementById('result-panel');
+  panel.className = 'result-panel show rp-' + state;
+}
+
+function setResult({ state, iconHtml, title, bodyHtml }) {
+  showPanel(state);
+  document.getElementById('rp-icon').innerHTML  = iconHtml;
+  document.getElementById('rp-title').textContent = title;
+  document.getElementById('rp-body').innerHTML  = bodyHtml;
+}
+
+// ════════════════════════════════════════════════════════════════
+// GENERATE
+// ════════════════════════════════════════════════════════════════
+async function generate() {
+  // ── validate ──
+  const missingFiles = entries.filter(e => !e.file);
+  if (missingFiles.length) {
+    setResult({
+      state: 'error',
+      iconHtml: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color:var(--red)"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
+      title: 'Missing JTL file(s)',
+      bodyHtml: `<div class="err-detail">Entry ${missingFiles.map(e => '#' + entries.indexOf(e) + 1).join(', ')} — please select a .jtl file.</div>`
+    });
+    return;
+  }
+
+  const emptyLabels = entries.filter(e => !e.label.trim());
+  if (emptyLabels.length) {
+    setResult({
+      state: 'error',
+      iconHtml: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color:var(--red)"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
+      title: 'Empty label(s)',
+      bodyHtml: `<div class="err-detail">Please fill in a run label for every entry.</div>`
+    });
+    return;
+  }
+
+  const outputName = (document.getElementById('output-name').value.trim() || 'performance_report').replace(/\.html$/i, '');
+  const apdexT     = parseInt(document.getElementById('apdex-t').value) || 500;
+
+  // ── progress UI ──
+  const stepIds = entries.map(e => 'step-' + e.id);
+  const stepsHtml = entries.map(e =>
+    `<span class="step" id="step-${e.id}">📄 ${escHtml(e.label)}</span>`
+  ).join('') + '<span class="step" id="step-render">⚙️ Render</span>';
+
+  setResult({
+    state: 'loading',
+    iconHtml: '<div class="spin"></div>',
+    title: 'Sending to API…',
+    bodyHtml: `<div style="font-family:var(--mono);font-size:12px;color:var(--text2)">
+                 Uploading ${entries.length} JTL file${entries.length > 1 ? 's' : ''} and generating report
+               </div>
+               <div class="steps">${stepsHtml}</div>`
+  });
+
+  const btn = document.getElementById('gen-btn');
+  btn.disabled = true;
+
+  // ── build FormData ──
+  const form = new FormData();
+  for (let i = 0; i < entries.length; i++) {
+    const e = entries[i];
+    form.append('jtl_'   + i, e.file, e.file.name);
+    form.append('label_' + i, e.label.trim());
+    // mark step active
+    const s = document.getElementById('step-' + e.id);
+    if (s) s.classList.add('active');
+  }
+  form.append('apdex_t',     apdexT);
+  form.append('output_name', outputName);
+
+  try {
+    const res = await fetch(apiBase() + '/generate', {
+      method: 'POST',
+      body: form,
+    });
+
+    // mark file steps done
+    entries.forEach(e => {
+      const s = document.getElementById('step-' + e.id);
+      if (s) { s.classList.remove('active'); s.classList.add('done'); }
+    });
+    const rs = document.getElementById('step-render');
+    if (rs) rs.classList.add('active');
+
+    if (!res.ok) {
+      let errMsg = 'HTTP ' + res.status + ' ' + res.statusText;
+      try {
+        const j = await res.json();
+        errMsg = j.error || (j.detail ? j.error + '\n\n' + j.detail : errMsg);
+      } catch {}
+      if (rs) { rs.classList.remove('active'); rs.classList.add('done'); }
+      throw new Error(errMsg);
+    }
+
+    // ── download blob ──
+    const blob     = await res.blob();
+    const url      = URL.createObjectURL(blob);
+    const dlName   = outputName + '.html';
+    const a        = document.createElement('a');
+    a.href         = url;
+    a.download     = dlName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+
+    if (rs) { rs.classList.remove('active'); rs.classList.add('done'); }
+
+    const sizeKB = Math.round(blob.size / 1024);
+    setResult({
+      state: 'success',
+      iconHtml: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" style="color:var(--green)"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+      title: 'Report generated successfully',
+      bodyHtml: `
+        <div class="success-meta">
+          <span class="meta-chip">✓ ${entries.length} run${entries.length > 1 ? 's' : ''}</span>
+          <span class="meta-chip">✓ ${dlName}</span>
+          <span class="meta-chip">✓ ${sizeKB} KB</span>
+        </div>
+        <a class="dl-btn" href="${url}" download="${dlName}">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          Download ${dlName}
+        </a>
+      `
+    });
+
+  } catch (err) {
+    setResult({
+      state: 'error',
+      iconHtml: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" style="color:var(--red)"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
+      title: 'Generation failed',
+      bodyHtml: `<div class="err-detail">${escHtml(String(err.message || err))}</div>
+                 <div style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-top:10px">
+                   Make sure the API server is running: <code style="color:var(--teal)">python app.py</code>
+                 </div>`
+    });
+  }
+
+  btn.disabled = false;
+}
+
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+</script>
+</body>
+</html>
